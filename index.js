@@ -40,7 +40,7 @@ module.exports = exports = middleware;
  *   };
  * }
  * ```
- * @param {Array} `fns` Array of middleware functions
+ * @param {Array|Function} `fns` Function or array of middleware functions
  * @api public
  */
 
@@ -81,7 +81,7 @@ function middleware(fns) {
  *   };
  * }
  * ```
- * @param {Array} `fns` Array of middleware functions
+ * @param {Array|Function} `fns` Function or array of middleware functions
  * @api public
  */
 
