@@ -7,16 +7,99 @@
 
 'use strict';
 
-var debug = require('debug')('gulp-middleware');
+var through = require('through2');
+var eachSeries = require('async-each-series');
+var each = require('async-each');
 
-module.exports = function(config) {
-  return function(app) {
-    if (this.isRegistered('gulp-middleware')) return;
-    debug('initializing "%s", from "%s"', __filename, module.parent.id);
+/**
+ * Expose `middleware`
+ */
 
-    this.define('middleware', function() {
-      debug('running middleware');
-      
+module.exports = exports = middleware;
+
+/**
+ * Run middleware in series.
+ *
+ * ```js
+ * var middleware = require('gulp-middleware');
+ *
+ * gulp.task('middleware', function() {
+ *   return gulp.src('*.js')
+ *     .pipe(middleware(fn('bar')))
+ *     .pipe(middleware([
+ *       fn('foo'),
+ *       fn('bar'),
+ *       fn('baz')
+ *     ]))
+ * });
+ *
+ * function fn(name) {
+ *   return function(file, next) {
+ *     console.log(name);
+ *     next();
+ *   };
+ * }
+ * ```
+ * @param {Array} `fns` Array of middleware functions
+ * @api public
+ */
+
+function middleware(fns) {
+  return through.obj(function(file, enc, cb) {
+    eachSeries(arrayify(fns), function(fn, next) {
+      try {
+        fn(file, next);
+      } catch (err) {
+        next(err);
+      }
+    }, function(err) {
+      cb(err, file);
     });
-  };
+  });
 };
+
+/**
+ * Run middleware in parallel.
+ *
+ * ```js
+ * var middleware = require('gulp-middleware');
+ *
+ * gulp.task('middleware', function() {
+ *   return gulp.src('*.js')
+ *     .pipe(middleware(fn('bar')))
+ *     .pipe(middleware.parallel([
+ *       fn('foo'),
+ *       fn('bar'),
+ *       fn('baz')
+ *     ]))
+ * });
+ *
+ * function fn(name) {
+ *   return function(file, next) {
+ *     console.log(name);
+ *     next();
+ *   };
+ * }
+ * ```
+ * @param {Array} `fns` Array of middleware functions
+ * @api public
+ */
+
+middleware.parallel = function(fns) {
+  fns = arrayify.apply(null, arguments);
+  return through.obj(function(file, enc, cb) {
+    each(arrayify(fns), function(fn, next) {
+      try {
+        fn(file, next);
+      } catch (err) {
+        next(err);
+      }
+    }, function(err) {
+      cb(err, file);
+    });
+  });
+};
+
+function arrayify(val) {
+  return val ? (Array.isArray(val) ? val : [val]) : [];
+}
